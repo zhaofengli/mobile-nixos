@@ -1,0 +1,8 @@
+= Google Android Things MT8167S
+include::_support/common.inc[]
+
+== Device-specific notes
+
+This configuration is tested with the Lenovo Smart Clock, but may be
+applicable for all Android Things MT8167S devices using the MediaTek
+MT8167S platform with minor changes. Your mileage may vary.
