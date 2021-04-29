@@ -1,4 +1,4 @@
-{ config, lib, pkgs, baseModules, modules, ... }:
+{ config, lib, pkgs, baseModules, modules, ... } @ parentArgs:
 
 let
   # Keep modules from this eval around
@@ -19,6 +19,9 @@ in
       composeConfig = { config ? {}, modules ? [], ... }@args:
       let
         filteredArgs = lib.filterAttrs (k: v: k != "config") args;
+
+        ignorekeys = [ "config" "lib" "pkgs" "modules" "baseModules" ];
+        filteredParentArgs = lib.filterAttrs (n: v: (!builtins.elem n ignorekeys)) parentArgs;
       in
       evalConfig (
         filteredArgs // {
@@ -29,6 +32,7 @@ in
         # Merge in this eval's modules with the argument's modules, and finally
         # with the given config.
         modules = modules' ++ modules ++ [ config ];
+        specialArgs = filteredParentArgs;
       });
     };
   };
