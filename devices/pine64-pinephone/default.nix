@@ -2,7 +2,6 @@
 
 {
   imports = [
-    ./modem.nix
     ./sound.nix
   ];
 
