@@ -2,11 +2,11 @@
 
 stdenv.mkDerivation rec {
   pname = "mkbootimg";
-  version = "2020.05.18";
+  version = "2021.08.06";
 
   src = fetchurl {
     url = "https://github.com/osm0sis/mkbootimg/archive/${version}.tar.gz";
-    sha256 = "1zz06x31rak9sv5v01kj3cvqvzh5qvq34p00paw5p3jl0lxvnvwc";
+    sha256 = "sha256-znVL8TzurH8SWBhiwH7lrYC5ZI5GTcppjdRWm6wIhlk=";
   };
 
   # Using makeFlags doesn't work due to the args being passed as well
