@@ -16,15 +16,14 @@
 
 stdenv.mkDerivation rec {
   pname = "eg25-manager";
-  version = "0.4.2";
+  version = "0.4.6";
 
   src = fetchFromGitLab {
     domain = "gitlab.com";
-    group = "mobian1";
-    owner = "devices";
+    owner = "mobian1";
     repo = pname;
     rev = version;
-    hash = "sha256-rt73HAFYnoP7jh0QeSrdbSVjMPsutp5tm1iJgqIX+LM=";
+    hash = "sha256-2JsdwK1ZOr7ljNHyuUMzVCpl+HV0C5sA5LAOkmELqag=";
   };
 
   nativeBuildInputs = [
