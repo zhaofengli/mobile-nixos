@@ -36,17 +36,19 @@
 , dtbTool-exynos
 , ufdt-apply-overlay
 
+, lz4
+
 , cpio
 , elfutils
 , libelf
-, utillinux
+, util-linux
 
 , bison
 , flex
 
 # For menuconfig
 , ncurses
-, pkgconfig
+, pkg-config
 , runtimeShell
 
 # A structured Linux configuration option attrset.
@@ -121,6 +123,10 @@ in
 # The usual mkDerivation option
 , enableParallelBuilding ? true
 
+# Tries to patch `multiple definition of `yylloc';` errors from older vendor kernels.
+# Only disable if the patch does not apply.
+, enableDefaultYYLOCPatch ? true
+
 # Usual stdenv arguments we are also setting.
 # Use the ones given by the user for composition.
 , nativeBuildInputs ? []
@@ -136,6 +142,15 @@ in
 , installsFirmware ? true
 , isModular ? true
 , kernelPatches ? []
+
+# Used as `.file` on the package to know the kernel image filename.
+, kernelFile ? kernelTarget + optionalString isImageGzDtb "-dtb"
+
+# Used to provide the default kernelFile
+, kernelFileExtension ? if isCompressed != false then ".${isCompressed}" else ""
+, kernelTarget ? if platform.linux-kernel.target == "Image"
+    then "${platform.linux-kernel.target}${kernelFileExtension}"
+    else platform.linux-kernel.target
 
 , ...
 } @ inputArgs:
@@ -164,15 +179,11 @@ let
   # Inspired from #91991
   # https://github.com/NixOS/nixpkgs/pull/91991
   # (required for menuconfig)
-  pkgconfig-helper = writeShellScriptBin "pkg-config" ''
-    exec ${buildPackages.pkgconfig}/bin/${buildPackages.pkgconfig.targetPrefix}pkg-config "$@"
+  pkg-config-helper = writeShellScriptBin "pkg-config" ''
+    exec ${buildPackages.pkg-config}/bin/${buildPackages.pkg-config.targetPrefix}pkg-config "$@"
   '';
 
   hasDTB = platform.linux-kernel ? DTB && platform.linux-kernel.DTB;
-  kernelFileExtension = if isCompressed != false then ".${isCompressed}" else "";
-  kernelTarget = if platform.linux-kernel.target == "Image"
-    then "${platform.linux-kernel.target}${kernelFileExtension}"
-    else platform.linux-kernel.target;
 in
 
 # This `let` block allows us to have a self-reference to this derivation.
@@ -196,11 +207,12 @@ stdenv.mkDerivation (inputArgs // {
   nativeBuildInputs = [ perl bc nettools openssl rsync gmp libmpc mpfr ]
     ++ optional (platform.linux-kernel.target == "uImage") buildPackages.ubootTools
     ++ optional (lib.versionAtLeast version "4.14" && lib.versionOlder version "5.8") libelf
-    ++ optional (lib.versionAtLeast version "4.15") utillinux
+    ++ optional (lib.versionAtLeast version "4.15") util-linux
     ++ optionals (lib.versionAtLeast version "4.16") [ bison flex ]
     ++ optionals (lib.versionAtLeast version "4.16") [ bison flex ]
     ++ optional  (lib.versionAtLeast version "5.2")  cpio
     ++ optional  (lib.versionAtLeast version "5.8")  elfutils
+    ++ optional  (isCompressed == "lz4") lz4
     # Mobile NixOS inputs.
     # While some kernels might not need those, most will.
     ++ [ dtc ]
@@ -213,7 +225,9 @@ stdenv.mkDerivation (inputArgs // {
   patches =
     map (p: p.patch) kernelPatches
     # Required for deterministic builds along with some postPatch magic.
-    ++ optional (lib.versionAtLeast version "4.13") (nixosKernelPath + "/randstruct-provide-seed.patch")
+    ++ optional ((lib.versionAtLeast version "4.13" && lib.versionOlder version "5.19")) (nixosKernelPath + "/randstruct-provide-seed.patch")
+    ++ optional ((lib.versionAtLeast version "5.19")) (nixosKernelPath + "/randstruct-provide-seed-5.19.patch")
+    ++ optional (enableDefaultYYLOCPatch && lib.versionOlder version "4.0") ./gcc10-extern_YYLOC_global_declaration.patch
     ++ patches
   ;
 
@@ -248,6 +262,8 @@ stdenv.mkDerivation (inputArgs // {
 
     echo ":: Patching tools/ shebangs"
     patchShebangs tools
+    echo ":: Patching scripts/ shebangs"
+    patchShebangs scripts
 
   '' + optionalString enableLinuxLogoReplacement ''
     echo ":: Replacing the logo"
@@ -407,7 +423,10 @@ stdenv.mkDerivation (inputArgs // {
   buildPhase = if enableCombiningBuildAndInstallQuirk then ":" else null;
 
   installTargets =
-    if isCompressed != false then [ "zinstall" ] else [ "install" ]
+    # zinstall only deals with `Image.gz`
+    # install will install the uncompressed kernel only...
+    # Though it's not an issue as we copy it ourselves anyway.
+    (if isCompressed == "gz" then [ "zinstall" ] else [ "install" ])
     ++ installTargets
     ++ optional isModular "modules_install"
   ;
@@ -509,7 +528,7 @@ stdenv.mkDerivation (inputArgs // {
     kernelAtLeast = lib.versionAtLeast baseVersion;
 
     # Used by consumers to refer to the kernel build product.
-    file = kernelTarget + optionalString isImageGzDtb "-dtb";
+    file = kernelFile;
 
     # Derivation with the as-built normalized kernel config
     normalizedConfig = kernelDerivation.overrideAttrs({ ... }: {
@@ -525,7 +544,7 @@ stdenv.mkDerivation (inputArgs // {
     menuconfig = kernelDerivation.overrideAttrs({nativeBuildInputs ? [] , ...}: {
       nativeBuildInputs = nativeBuildInputs ++ [
         ncurses
-        pkgconfig-helper
+        pkg-config-helper
       ];
       buildFlags = [ "nconfig" "V=1" ];
 
@@ -534,7 +553,7 @@ stdenv.mkDerivation (inputArgs // {
         (PS4=" $ "; set -x
 
         # Hot fixes pkg-config use.
-        export PKG_CONFIG_PATH="${buildPackages.ncurses.dev}/lib/pkgconfig"
+        export PKG_CONFIG_PATH="${buildPackages.ncurses.dev}/lib/pkg-config"
         if [ -e scripts/kconfig/nconf-cfg.sh ]; then
           sed -i"" \
             -e 's/$(pkg-config --libs $PKG)/-L $(pkg-config --variable=libdir ncursesw) $(pkg-config --libs $PKG)/' \
@@ -549,7 +568,15 @@ stdenv.mkDerivation (inputArgs // {
 
         # Stops `make ...config` from starting the application.
         cp scripts/kconfig/Makefile scripts/kconfig/Makefile.old
-        sed -i"" -e 's/$< .*$(Kconfig)/echo "no-op"/' scripts/kconfig/Makefile
+
+        # In linux commit f91e46b1a722 (~ 5.12) the makefile rules for
+        # {menu,n,g,x,}config were unified using a make definition,
+        # which involved doubling the dollar sign from $< top $$<.
+        # Doing two sed runs should accommodate both the older and
+        # newer variants harmlessly
+
+        sed -i"" -e 's/$$< .*$(Kconfig)/echo "no-op"/' \
+                 -e 's/$< .*$(Kconfig)/echo "no-op"/' scripts/kconfig/Makefile
 
         # Build the ...config application.
         make $makeFlags "''${makeFlagsArray[@]}" $buildFlags

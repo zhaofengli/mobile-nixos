@@ -6,6 +6,7 @@
    name = "UEFI build (x86_64)";
    manufacturer = "Generic";
   };
+  mobile.device.supportLevel = "supported";
 
   mobile.hardware = {
     soc = "generic-x86_64";
@@ -15,11 +16,6 @@
     };
     ram = 1024 * 2;
   };
-
-  boot.kernelParams = [
-    "fbcon=vc:2-6"
-    "console=tty0"
-  ];
 
   mobile.system.type = "uefi";
 

@@ -32,6 +32,7 @@ in
     mkbootimg = callPackage ./mkbootimg { };
     msm-fb-refresher = callPackage ./msm-fb-refresher { };
     ply-image = callPackage ./ply-image { };
+    qc-image-unpacker = callPackage ./qc-image-unpacker { };
     ufdt-apply-overlay = callPackage ./ufdt-apply-overlay {};
 
     # Extra "libs"
@@ -57,6 +58,14 @@ in
     make_ext4fs = callPackage ./make_ext4fs {};
     hardshutdown = callPackage ./hardshutdown {};
     bootlogd = callPackage ./bootlogd {};
+    libusbgx = callPackage ./libusbgx {};
+    gadget-tool = callPackage ./gt {}; # upstream this is called "gt", which is very Unix.
+
+    qrtr = callPackage ./qrtr/qrtr.nix { };
+    qmic = callPackage ./qrtr/qmic.nix { };
+    tqftpserv = callPackage ./qrtr/tqftpserv.nix { };
+    pd-mapper = callPackage ./qrtr/pd-mapper.nix { };
+    rmtfs = callPackage ./qrtr/rmtfs.nix { };
 
     #
     # Hacks
@@ -65,7 +74,14 @@ in
     # Totally not upstreamable stuff.
     #
 
-    xorg = super.xorg.overrideScope'(self: super: {
+    xorg = (
+      # Backward compatibility shim
+      # Fixes eval after https://github.com/NixOS/nixpkgs/pull/199912
+      # Can be removed on or after 2023-05-16
+      if super.xorg ? overrideScope'
+      then super.xorg.overrideScope'
+      else super.xorg.overrideScope
+    ) (self: super: {
       xf86videofbdev = super.xf86videofbdev.overrideAttrs({patches ? [], ...}: {
         patches = patches ++ [
           ./xserver/0001-HACK-fbdev-don-t-bail-on-mode-initialization-fail.patch
@@ -128,6 +144,8 @@ in
       android-flashable-zip-binaries = self.pkgsStatic.callPackage ./mobile-nixos/android-flashable-zip-binaries {};
 
       autoport = callPackage ./mobile-nixos/autoport {};
+
+      boot-control = callPackage ./mobile-nixos/boot-control {};
 
       boot-recovery-menu-simulator = self.mobile-nixos.stage-1.boot-recovery-menu.simulator;
       boot-splash-simulator = self.mobile-nixos.stage-1.boot-splash.simulator;

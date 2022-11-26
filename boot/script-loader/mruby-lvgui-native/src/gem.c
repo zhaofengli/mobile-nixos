@@ -11330,19 +11330,23 @@ mrb_mruby_lvgui_native_lv_task_create(mrb_state *mrb, mrb_value self)
   lv_task_cb_t param_task_xcb;
   
   // Parameter handling for native parameter `uint32_t period`
+  mrb_int param_period_int;
   uint32_t param_period;
   
   // Parameter handling for native parameter `lv_task_prio_t prio`
+  mrb_int param_prio_int;
   lv_task_prio_t param_prio;
   
   mrb_get_args(
     mrb,
     "oiio",
     &param_task_xcb_instance,
-    &param_period,
-    &param_prio,
+    &param_period_int,
+    &param_prio_int,
     &task_proc
   );
+  param_period = (uint32_t)param_period_int;
+  param_prio = (lv_task_prio_t)param_prio_int;
   
   param_task_xcb = mrb_mruby_lvgui_native_unwrap_pointer(
     mrb,
@@ -11361,6 +11365,78 @@ mrb_mruby_lvgui_native_lv_task_create(mrb_state *mrb, mrb_value self)
   
   // Converts return value back to a valid mruby value
   return mrb_mruby_lvgui_native_wrap_pointer(mrb, (void *) task);
+}
+
+//
+////////
+
+////////
+// Bindings for: `void lv_task_del(lv_task_t * task)`
+
+static mrb_value
+mrb_mruby_lvgui_native_lv_task_del(mrb_state *mrb, mrb_value self)
+{
+    /* No return value */
+  
+    //
+    // Parameters handling
+    //
+    
+    // Parameter handling for native parameter `lv_task_t * task`
+    mrb_value param_task_instance;
+    lv_task_t * param_task;
+    
+    mrb_get_args(
+      mrb,
+      "o",
+      &param_task_instance
+    );
+    param_task = mrb_mruby_lvgui_native_unwrap_pointer(
+      mrb,
+      param_task_instance
+    );
+  
+    // Calling native function
+    lv_task_del(param_task);
+  
+    // Converts return value back to a valid mruby value
+    return mrb_nil_value();
+}
+
+//
+////////
+
+////////
+// Bindings for: `void lv_task_once(lv_task_t * task)`
+
+static mrb_value
+mrb_mruby_lvgui_native_lv_task_once(mrb_state *mrb, mrb_value self)
+{
+    /* No return value */
+  
+    //
+    // Parameters handling
+    //
+    
+    // Parameter handling for native parameter `lv_task_t * task`
+    mrb_value param_task_instance;
+    lv_task_t * param_task;
+    
+    mrb_get_args(
+      mrb,
+      "o",
+      &param_task_instance
+    );
+    param_task = mrb_mruby_lvgui_native_unwrap_pointer(
+      mrb,
+      param_task_instance
+    );
+  
+    // Calling native function
+    lv_task_once(param_task);
+  
+    // Converts return value back to a valid mruby value
+    return mrb_nil_value();
 }
 
 //
@@ -16183,6 +16259,38 @@ mrb_mruby_lvgui_native_gem_init(mrb_state* mrb)
     mLVGUI__Native__References,
     mrb_symbol_value(mrb_intern_lit(mrb, "lv_task_create")),
     mrb_mruby_lvgui_native_wrap_pointer(mrb, (void *) lv_task_create)
+  );
+
+  // ```void lv_task_del(lv_task_t * task);```
+  mrb_define_module_function(
+    mrb,
+    mLVGUI__Native,
+    "lv_task_del",
+    mrb_mruby_lvgui_native_lv_task_del,
+    MRB_ARGS_REQ(1)
+  );
+  
+  mrb_hash_set(
+    mrb,
+    mLVGUI__Native__References,
+    mrb_symbol_value(mrb_intern_lit(mrb, "lv_task_del")),
+    mrb_mruby_lvgui_native_wrap_pointer(mrb, (void *) lv_task_del)
+  );
+
+  // ```void lv_task_once(lv_task_t * task);```
+  mrb_define_module_function(
+    mrb,
+    mLVGUI__Native,
+    "lv_task_once",
+    mrb_mruby_lvgui_native_lv_task_once,
+    MRB_ARGS_REQ(1)
+  );
+  
+  mrb_hash_set(
+    mrb,
+    mLVGUI__Native__References,
+    mrb_symbol_value(mrb_intern_lit(mrb, "lv_task_once")),
+    mrb_mruby_lvgui_native_wrap_pointer(mrb, (void *) lv_task_once)
   );
 
   // Custom handler for tasks callbacks

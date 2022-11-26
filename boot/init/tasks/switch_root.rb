@@ -9,6 +9,10 @@ class Tasks::SwitchRoot < SingletonTask
     add_dependency(:Task, Tasks::Splash.instance)
     add_dependency(:Target, :SwitchRoot)
     @target = SYSTEM_MOUNT_POINT
+
+    # By default, with stage-0, we prefer using the generation kernel
+    # This may be overriden by the user recovery user interface
+    @use_generation_kernel = STAGE == 0
   end
 
   # Given a path name, without the leading SYSTEM_MOUNT_POINT, resolves
@@ -95,19 +99,26 @@ class Tasks::SwitchRoot < SingletonTask
 
     # Given as a command-line option, from the bootloader (replacement for NixOS's stage-1)
     init_parameter = System.cmdline().grep(/^init=/).first
-    unless init_parameter.nil?
-      init_parameter = init_parameter.split("=", 2).last
-      return init_parameter.rpartition("/").first
+    if init_parameter == "init=/init" then
+      $logger.info("Skipping '#{init_parameter}' cmdline parameter from quirky device...")
+    else
+      unless init_parameter.nil?
+        $logger.info("Using '#{init_parameter}' cmdline parameter to select generation...")
+        init_parameter = init_parameter.split("=", 2).last
+        return init_parameter.rpartition("/").first
+      end
     end
 
     # The default generation
     if File.symlink?(File.join(@target, DEFAULT_SYSTEM_LINK))
+      $logger.info("Using '#{DEFAULT_SYSTEM_LINK}' default generation...")
       return DEFAULT_SYSTEM_LINK
     end
 
     # Otherwise, we need to re-hydrate a system!
     registration = File.join(@target, "nix-path-registration")
     if File.exist?(registration)
+      $logger.info("Getting NixOS generation from nix-path-registration...")
       path = File.read(registration)
         .split("\n")
         .grep(%r{^/nix/store/[a-z0-9]+-nixos-system-})
@@ -222,6 +233,7 @@ class Tasks::SwitchRoot < SingletonTask
       %Q{/ { mobile-nixos,stage-0,uptime = #{`uptime`.to_json}; };},
     ].join("\n")
 
+    FileUtils.mkdir_p("/run/boot/")
     File.write("/run/boot/fdt.dts", dts)
     System.run("fdt-forward --to-dtb < /run/boot/fdt.dts > /run/boot/fdt.dtb")
 

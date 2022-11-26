@@ -61,12 +61,12 @@ let
     , libxkbcommon
     , meson
     , ninja
-    , pkgconfig
-    , yacc
+    , pkg-config
+    , bison
     }:
 
     libxkbcommon.overrideAttrs({...}: {
-      nativeBuildInputs = [ meson ninja pkgconfig yacc ];
+      nativeBuildInputs = [ meson ninja pkg-config bison ];
       buildInputs = [ ];
 
       mesonFlags = [
@@ -97,13 +97,13 @@ let
 in
   stdenv.mkDerivation {
     pname = "lvgui";
-    version = "2022-07-30";
+    version = "2022-10-26";
 
     src = fetchFromGitHub {
       repo = "lvgui";
       owner = "mobile-nixos";
-      rev = "253618177e2d36f9c5aae1ca136baed8f376d746";
-      sha256 = "sha256-Eih45L9xaemp7OYt397yf2JsnL9+WMqC4CTz74ZSfrI=";
+      rev = "364397e6294efb53341cc1c54d4885cb21f40567";
+      sha256 = "sha256-0lcXgfTwvvZPC8DYrbhfxL0cfFE1+RELubuoSq+9oOY=";
     };
 
     # Document `LVGL_ENV_SIMULATOR` in the built headers.

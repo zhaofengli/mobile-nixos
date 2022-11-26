@@ -4,7 +4,7 @@ let
   enabled = config.mobile.system.type == "u-boot";
 
   inherit (config.mobile.outputs) recovery stage-0;
-  inherit (pkgs) buildPackages imageBuilder runCommandNoCC;
+  inherit (pkgs) buildPackages imageBuilder runCommand;
   inherit (lib) mkIf mkOption types;
   cfg = config.mobile.quirks.u-boot;
   inherit (cfg) soc;
@@ -90,7 +90,7 @@ let
     booti ''${kernel_addr_r} ''${ramdisk_addr_r}:''${ramdisk_size} ''${fdt_addr_r};
   '';
 
-  bootscr = runCommandNoCC "${deviceName}-boot.scr" {
+  bootscr = runCommand "${deviceName}-boot.scr" {
     nativeBuildInputs = [
       buildPackages.ubootTools
     ];
@@ -149,7 +149,7 @@ let
   };
 
   disk-image = imageBuilder.diskImage.makeGPT {
-    name = "mobile-nixos";
+    name = config.mobile.configurationName;
     diskID = "01234567";
 
     partitions = [
@@ -158,6 +158,15 @@ let
       boot-partition
       config.mobile.outputs.generatedFilesystems.rootfs
     ];
+
+    postProcess = ''
+      (PS4=" $ "; set -x
+      mkdir $out/nix-support
+      cat <<EOF > $out/nix-support/hydra-build-products
+      file disk-image $out/$filename
+      EOF
+      )
+    '';
   };
 in
 {

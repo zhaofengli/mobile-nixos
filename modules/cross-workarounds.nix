@@ -8,7 +8,7 @@ let
     config.nixpkgs.crossSystem != null &&
     config.nixpkgs.localSystem.system != null &&
     config.nixpkgs.crossSystem.system != config.nixpkgs.localSystem.system;
-  nullPackage = pkgs.runCommandNoCC "null" {} ''
+  nullPackage = pkgs.runCommand "null" {} ''
     mkdir -p $out
   '';
 in
@@ -16,7 +16,12 @@ lib.mkIf isCross (lib.mkMerge [
 
 # All cross-compilation
 {
-  # No workarounds needed!
+
+  # Some Network Manager plugins are kinda problematic...
+  # Let's ignore them for now.
+  # Cross-compilation of Mobile NixOS for the time being is not fully-featured.
+  # If those plugins are needed, do a native build.
+  networking.networkmanager.plugins = lib.mkForce [];
 }
 
 # 32 bit ARM

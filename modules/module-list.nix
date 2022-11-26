@@ -2,6 +2,8 @@
 # Keep this list `:sort`ed.
 [
   ./adb.nix
+  ./beautification.nix
+  ./boot-control.nix
   ./boot-initrd.nix
   ./bootloader.nix
   ./cross-workarounds.nix
@@ -39,6 +41,7 @@
   ./mobile-device.nix
   ./nixpkgs.nix
   ./outputs.nix
+  ./plymouth.nix
   ./quirks
   ./recovery.nix
   ./rootfs.nix
@@ -47,4 +50,6 @@
   ./system-build.nix
   ./system-target.nix
   ./system-types.nix
+  ./usb-gadget.nix
+  ./zram.nix
 ]

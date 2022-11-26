@@ -310,6 +310,17 @@ rec {
     meta.license = licenses.mit;
   };
 
+  mruby-secure-random = mkGem {
+    src = fetchFromGitHub {
+      repo = "mruby-secure-random";
+      owner = "monochromegane";
+      rev = "4971702e8cd299054b3220b4adb6bc3031ae2881";
+      sha256 = "sha256-fnMuTgGHM0CNado/ZzMFLfZ+Ah6ug5A0nQ2Kf9inPto=";
+    };
+
+    meta.license = licenses.mit;
+  };
+
   mruby-sha1 = mkGem {
     src = fetchFromGitHub {
       repo = "mruby-sha1";
@@ -330,7 +341,7 @@ rec {
       fetchSubmodules = true;
     };
 
-    meta.licenses = licenses.asl20;
+    meta.license = licenses.asl20;
   };
 
   mruby-singleton = mkGem {
@@ -341,7 +352,7 @@ rec {
       sha256 = "0yyf9vfsm46m2fi46f8w6ympkwzlaqnbpjkfnkzyapf94rg23g6i";
     };
 
-    meta.licenses = licenses.mit;
+    meta.license = licenses.mit;
   };
 
   mruby-tempfile = mkGem {
@@ -358,7 +369,7 @@ rec {
       mruby-errno
     ];
 
-    meta.licenses = licenses.mit;
+    meta.license = licenses.mit;
   };
 
   mruby-time-strftime = mkGem {
@@ -369,7 +380,7 @@ rec {
       sha256 = "1yh6sd7m4kqljp30yp6sy3zj6669bvzcans7vvla2rrzm0vdghlk";
     };
 
-    meta.licenses = licenses.mit;
+    meta.license = licenses.mit;
   };
 
   mruby-zmq = mkGem {
@@ -403,6 +414,6 @@ rec {
       mruby-env
     ];
 
-    meta.licenses = licenses.mpl20;
+    meta.license = licenses.mpl20;
   };
 }

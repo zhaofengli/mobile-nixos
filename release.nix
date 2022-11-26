@@ -134,34 +134,80 @@ let
     )
   );
 
-  examples-demo =
-    let
-      aarch64-eval = import ./examples/demo {
-        device = specialConfig {
-          name = "aarch64-linux";
-          buildingForSystem = "aarch64-linux";
-          system = "aarch64-linux";
-          config = {
-            mobile._internal.compressLargeArtifacts = inNixOSHydra;
-            # Do not build kernel and initrd into the system.
-            mobile.rootfs.shared.enabled = true;
-          };
+  evalExample =
+    { example
+    , system
+    , targetSystem ? system
+    }:
+    import example {
+      device = specialConfig {
+        name =
+          if system == targetSystem
+          then system
+          else "${targetSystem}-built-on-${system}"
+        ;
+        inherit system;
+        buildingForSystem = targetSystem;
+        config = {
+          # Ensures outputs are digestible by Hydra
+          mobile._internal.compressLargeArtifacts = inNixOSHydra;
+          # Build a generic rootfs
+          mobile.rootfs.shared.enabled = true;
         };
       };
-    in
-    {
-      aarch64-linux.rootfs = aarch64-eval.outputs.rootfs;
-    };
+    }
+  ;
 
-    doc = import ./doc {
-      pkgs = pkgs';
-    };
+  evalInstaller =
+    { device
+    , localSystem
+    }:
+    let
+      eval = evalWithConfiguration {
+        imports = [
+          ./examples/installer/configuration.nix
+        ];
+        nixpkgs.localSystem = knownSystems.${localSystem};
+      } device;
+    in
+      eval // { inherit (eval.config.mobile) outputs; }
+  ;
+
+  doc = import ./doc {
+    pkgs = pkgs';
+  };
 in
 rec {
   inherit device;
   inherit kernel;
-  inherit examples-demo;
   inherit doc;
+
+  # Some example systems to build.
+  # They track breaking changes, and ensures dependencies are built.
+  # They may or may not work as-they-are on devices. YMMV.
+  examples = {
+    hello = {
+      x86_64-linux.toplevel  = (evalExample { example = ./examples/hello; system = "x86_64-linux"; }).outputs.toplevel;
+      aarch64-linux.toplevel = (evalExample { example = ./examples/hello; system = "aarch64-linux"; }).outputs.toplevel;
+      cross-x86-aarch64.toplevel = (evalExample { example = ./examples/hello; system = "x86_64-linux"; targetSystem = "aarch64-linux"; }).outputs.toplevel;
+      cross-x86-armv7l.toplevel  = (evalExample { example = ./examples/hello; system = "x86_64-linux"; targetSystem = "armv7l-linux";  }).outputs.toplevel;
+    };
+    phosh = {
+      x86_64-linux.toplevel  = (evalExample { example = ./examples/phosh; system = "x86_64-linux"; }).outputs.toplevel;
+      aarch64-linux.toplevel = (evalExample { example = ./examples/phosh; system = "aarch64-linux"; }).outputs.toplevel;
+      cross-x86-aarch64.toplevel = (evalExample { example = ./examples/phosh; system = "x86_64-linux"; targetSystem = "aarch64-linux"; }).outputs.toplevel;
+    };
+    plasma-mobile = {
+      x86_64-linux.toplevel  = (evalExample { example = ./examples/plasma-mobile; system = "x86_64-linux"; }).outputs.toplevel;
+      aarch64-linux.toplevel = (evalExample { example = ./examples/plasma-mobile; system = "aarch64-linux"; }).outputs.toplevel;
+      cross-x86-aarch64.toplevel = (evalExample { example = ./examples/plasma-mobile; system = "x86_64-linux"; targetSystem = "aarch64-linux"; }).outputs.toplevel;
+    };
+  };
+
+  installer = {
+    lenovo-krane = (evalInstaller { device = "lenovo-krane"; localSystem = "aarch64-linux"; }).outputs.default;
+    pine64-pinephone = (evalInstaller { device = "pine64-pinephone"; localSystem = "aarch64-linux"; }).outputs.default;
+  };
 
   # Overlays build native, and cross, according to shouldEvalOn
   overlay = lib.genAttrs systems (system:
@@ -184,6 +230,13 @@ rec {
     }
   );
 
+  cross-compiled = {
+    installer = {
+      lenovo-krane = (evalInstaller { device = "lenovo-krane"; localSystem = "x86_64-linux"; }).outputs.default;
+      pine64-pinephone = (evalInstaller { device = "pine64-pinephone"; localSystem = "x86_64-linux"; }).outputs.default;
+    };
+  };
+
   tested = let
     hasSystem = name: lib.lists.any (el: el == name) systems;
 
@@ -191,9 +244,16 @@ rec {
       cross-canaries.aarch64-linux.constituents
       ++ lib.optionals (hasSystem "x86_64-linux") [
         device.uefi-x86_64.x86_64-linux              # UEFI system
+
         # Cross builds
         device.asus-z00t.x86_64-linux                # Android
         device.asus-dumo.x86_64-linux                # Depthcharge
+
+        # Example systems
+        examples.hello.x86_64-linux.toplevel
+        examples.hello.cross-x86-aarch64.toplevel
+        examples.phosh.x86_64-linux.toplevel
+        examples.plasma-mobile.x86_64-linux.toplevel
 
         # Flashable zip binaries are universal for a platform.
         overlay.x86_64-linux.aarch64-linux-cross.mobile-nixos.android-flashable-zip-binaries
@@ -201,7 +261,13 @@ rec {
       ++ lib.optionals (hasSystem "aarch64-linux") [
         device.asus-z00t.aarch64-linux               # Android
         device.asus-dumo.aarch64-linux               # Depthcharge
-        examples-demo.aarch64-linux.rootfs
+
+        # Example systems
+        examples.hello.aarch64-linux.toplevel
+        examples.phosh.aarch64-linux.toplevel
+        examples.plasma-mobile.aarch64-linux.toplevel
+
+        installer.pine64-pinephone
 
         # Flashable zip binaries are universal for a platform.
         overlay.aarch64-linux.aarch64-linux.mobile-nixos.android-flashable-zip-binaries
@@ -224,6 +290,7 @@ rec {
       ++ lib.optionals (hasSystem "x86_64-linux") [
         device.asus-flo.x86_64-linux
         overlay.x86_64-linux.armv7l-linux-cross.mobile-nixos.android-flashable-zip-binaries
+        examples.hello.cross-x86-armv7l.toplevel
       ]
       ++ lib.optionals (hasSystem "aarch64-linux") [
       ]
